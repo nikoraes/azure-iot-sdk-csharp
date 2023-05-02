@@ -63,6 +63,7 @@ Param(
     [switch] $prtests,
     [switch] $e2etests,
     [switch] $stresstests,
+    [switch] $serialtests,
     [switch] $publish,
     [string] $verbosity = "q",
     [string] $framework = "*",
@@ -446,6 +447,46 @@ try
 
         RunApp e2e\stress\MemoryLeakTest "MemoryLeakTest test"
     }
+	
+	if ($serialtests)
+    {
+        Write-Host
+        Write-Host -ForegroundColor Cyan "PR validation tests"
+        Write-Host
+
+        # Tests categories to include
+        $testCategory = "("
+        $testCategory += "TestCategory=Serial"
+        $testCategory += ")"
+
+        # test categories to exclude
+        $testCategory += "&TestCategory!=LongRunning"
+        $testCategory += "&TestCategory!=Flaky"
+
+        # Invalid certificate tests are currently disabled on both Windows and Linux
+        # Windows - Invalid cert tests don't currently work with docker on Windows within pipeline agent setup because of virtual host networking configuration issue
+        # Linux - The hosted agents are currently referencing a pre-installed newer version of docker (20.10.21+azure-1) which has some compatibility issues with commands
+        # that were used with older versions of docker. We're disabling this task until those compatibility issues can be investigated and resolved.
+
+        # Tests categories to exclude
+        $testCategory += "&TestCategory!=InvalidServiceCertificate"
+
+        if ($skipIotHubTests)
+        {
+            $testCategory += "&TestCategory!=IoTHub-Client&TestCategory!=IoTHub-Service"
+        }
+
+        if ($skipDPSTests)
+        {
+            $testCategory += "&TestCategory!=DPS"
+        }
+
+        RunTests "Serial tests" -filterTestCategory $testCategory -framework $framework
+    }
+	else
+	{
+        $testCategory += "&TestCategory!=Serial"
+	}
 
     if ($package)
     {

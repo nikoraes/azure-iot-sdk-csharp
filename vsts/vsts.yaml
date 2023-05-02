@@ -650,3 +650,187 @@ jobs:
         enabled: false
 
 # END: SDL and Compliance tasks #
+
+
+  ### Windows build ###
+  - job: WINDOWS
+    displayName: Windows
+    timeoutInMinutes: ${{ parameters.jobTimeoutInMinutes }}
+    strategy:
+      maxParallel: 1
+      matrix:
+        .NET 7.0:
+          FRAMEWORK: net7.0
+          SHOULD_RUN: ${{ eq(variables['testNet70'], 'True') }}
+        .NET 6.0:
+          FRAMEWORK: net6.0
+          SHOULD_RUN: ${{ eq(variables['testNet60'], 'True') }}
+        .NET CoreApp 3.1:
+          FRAMEWORK: netcoreapp3.1
+          SHOULD_RUN: ${{ eq(variables['testNetcore31'], 'True') }}
+        .NET 4.7.2:
+          FRAMEWORK: net472
+          SHOULD_RUN: ${{ eq(variables['testNet472'], 'True') }}
+
+    condition: succeeded()
+    pool:
+      # If this is changed, don't forget to update supported_platforms.md in the root directory. That document outlines what OS we test on and should stay up to date.
+      vmImage: windows-2022
+    steps:
+      - task: PowerShell@2
+        displayName: 'Print vars'
+        inputs:
+          targetType: inline
+          script: |
+            Write-Host "Build.Reason: ${{ variables['Build.Reason'] }}"
+            Write-Host "jobTimeoutInMinutes: ${{ parameters.jobTimeoutInMinutes }}"
+            Write-Host "maxParallelJobs: ${{ parameters.maxParallelJobs }}"
+            Write-Host "minMatrix: ${{ variables.minMatrix }}"
+            Write-Host "testNet70: ${{ variables.testNet70 }}"
+            Write-Host "testNet60: ${{ variables.testNet60 }}"
+            Write-Host "testNetcore31: ${{ variables.testNetcore31 }}"
+            Write-Host "testNet472: ${{ variables.testNet472 }}"
+
+      - task: UseDotNet@2
+        displayName: 'Use .NET SDK 7.0'
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          packageType: sdk
+          version: 7.x
+          performMultiLevelLookup: true
+          installationPath: $(Agent.ToolsDirectory)/dotnet
+
+      - task: UseDotNet@2
+        displayName: 'Use .NET SDK 6.0'
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          packageType: sdk
+          version: 6.x
+          performMultiLevelLookup: true
+          installationPath: $(Agent.ToolsDirectory)/dotnet
+
+      - task: UseDotNet@2
+        displayName: 'Use .NET Core SDK 3.1'
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          packageType: sdk
+          version: 3.1.x
+          performMultiLevelLookup: true
+          installationPath: $(Agent.ToolsDirectory)/dotnet
+
+      - script: |
+          choco install -y squid
+
+        displayName: "Install Squid"
+        condition: eq(variables.SHOULD_RUN, 'True')
+
+      - powershell: ./vsts/serialTests.ps1
+        displayName: Run Serial Tests
+        condition: eq(variables.SHOULD_RUN, 'True')
+        env:
+          # Environment variables for IoT Hub E2E tests
+          IOTHUB_CONNECTION_STRING: $(IOTHUB-CONNECTION-STRING)
+          IOTHUB_DEVICE_CONN_STRING: $(IOTHUB-DEVICE-CONN-STRING)
+          IOTHUB_X509_DEVICE_PFX_CERTIFICATE: $(IOTHUB-X509-DEVICE-PFX-CERTIFICATE)
+          IOTHUB_X509_CHAIN_DEVICE_NAME: $(IOTHUB-X509-CHAIN-DEVICE-NAME)
+          IOTHUB_X509_CHAIN_DEVICE_PFX_CERTIFICATE: $(IOTHUB-X509-CHAIN-DEVICE-PFX-CERTIFICATE)
+          IOTHUB_X509_DEVICE_PFX_THUMBPRINT: $(IOTHUB-X509-DEVICE-PFX-THUMBPRINT)
+          IOTHUB_USER_ASSIGNED_MSI_RESOURCE_ID: $(IOTHUB-USER-ASSIGNED-MSI-RESOURCE-ID)
+          IOTHUB_SAS_KEY: $(IOTHUB-SAS-KEY)
+          IOTHUB_SAS_KEY_NAME: $(IOTHUB-SAS-KEY-NAME)
+
+          # Environment variables for DPS E2E tests
+          DPS_IDSCOPE: $(DPS-IDSCOPE)
+          PROVISIONING_CONNECTION_STRING: $(PROVISIONING-CONNECTION-STRING)
+          DPS_GLOBALDEVICEENDPOINT: $(DPS-GLOBALDEVICEENDPOINT)
+          DPS_X509_PFX_CERTIFICATE_PASSWORD: $(DPS-X509-PFX-CERTIFICATE-PASSWORD)
+          DPS_X509_GROUP_ENROLLMENT_NAME: $(DPS-X509-GROUP-ENROLLMENT-NAME)
+
+          # Environment variables for Azure resources used for E2E tests (common)
+          X509_CHAIN_ROOT_CA_CERTIFICATE: $(X509-CHAIN-ROOT-CA-CERTIFICATE)
+          X509_CHAIN_INTERMEDIATE1_CERTIFICATE: $(X509-CHAIN-INTERMEDIATE1-CERTIFICATE)
+          X509_CHAIN_INTERMEDIATE2_CERTIFICATE: $(X509-CHAIN-INTERMEDIATE2-CERTIFICATE)
+          X509_CHAIN_INTERMEDIATE2_PFX_CERTIFICATE: $(X509-CHAIN-INTERMEDIATE2-PFX-CERTIFICATE)
+          STORAGE_ACCOUNT_CONNECTION_STRING: $(STORAGE-ACCOUNT-CONNECTION-STRING)
+          MSFT_TENANT_ID: $(MSFT-TENANT-ID)
+          E2E_TEST_AAD_APP_CLIENT_ID: $(E2E-TEST-AAD-APP-CLIENT-ID)
+          E2E_TEST_AAD_APP_CLIENT_SECRET: $(E2E-TEST-AAD-APP-CLIENT-SECRET)
+
+          # Environment variables for the DevOps pipeline
+          PROXY_SERVER_ADDRESS: 127.0.0.1:3128
+          TARGET_BRANCH: $(System.PullRequest.TargetBranch)
+          FRAMEWORK: $(FRAMEWORK)
+
+          # Environment variables for invalid certificate tests
+          IOTHUB_DEVICE_CONN_STRING_INVALIDCERT: $(IOTHUB-DEVICE-CONN-STRING-INVALIDCERT)
+          IOTHUB_CONN_STRING_INVALIDCERT: $(IOTHUB-CONN-STRING-INVALIDCERT)
+          DPS_GLOBALDEVICEENDPOINT_INVALIDCERT: $(DPS-GLOBALDEVICEENDPOINT-INVALIDCERT)
+          PROVISIONING_CONNECTION_STRING_INVALIDCERT: $(PROVISIONING-CONNECTION-STRING-INVALIDCERT)
+
+          # Environment variables used by Log Analytics Workspace for Azure Security Center
+          LA_AAD_APP_ID: $(LA-AAD-APP-ID)
+          LA_AAD_APP_CERT_BASE64: $(LA-AAD-APP-CERT-BASE64)
+          LA_WORKSPACE_ID: $(LA-WORKSPACE-ID)
+
+          # Environment variable for running samples/cleanups
+          PATH_TO_DEVICE_PREFIX_FOR_DELETION_FILE: $(PATH-TO-DEVICE-PREFIX-FOR-DELETION-FILE)
+          PNP_TC_DEVICE_CONN_STRING: $(PNP-TC-DEVICE-CONN-STRING)
+          PNP_THERMOSTAT_DEVICE_CONN_STRING: $(PNP-THERMOSTAT-DEVICE-CONN-STRING)
+          DPS_SYMMETRIC_KEY_INDIVIDUAL_ENROLLMENT_REGISTRATION_ID: $(DPS-SYMMETRIC-KEY-INDIVIDUAL-ENROLLMENT-REGISTRATION-ID)
+          DPS_SYMMETRIC_KEY_INDIVIDUAL_ENROLLEMNT_PRIMARY_KEY: $(DPS-SYMMETRIC-KEY-INDIVIDUAL-ENROLLEMNT-PRIMARY-KEY)
+
+      - task: CopyFiles@2
+        displayName: "Copy TRX files to the artifacts folder"
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          SourceFolder: "$(Build.SourcesDirectory)"
+          Contents: "**/*.trx"
+          TargetFolder: "$(Build.ArtifactStagingDirectory)"
+
+      - task: CopyFiles@2
+        displayName: "Copy coverage files to the artifacts folder"
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          SourceFolder: "$(Build.SourcesDirectory)"
+          Contents: "**/*.coverage"
+          TargetFolder: "$(Build.ArtifactStagingDirectory)"
+          flattenFolders: true
+
+      - task: CopyFiles@2
+        displayName: "Copy ETL files to the artifacts folder"
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          SourceFolder: "$(Build.SourcesDirectory)"
+          Contents: "**/*.etl"
+          TargetFolder: "$(Build.ArtifactStagingDirectory)"
+
+      - task: PublishBuildArtifacts@1
+        displayName: "Publish Artifact: testresults"
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          ArtifactName: testresults_windows_$(FRAMEWORK)
+
+      - task: PublishTestResults@2
+        displayName: "Publish Test Results **/*.trx"
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          testRunner: VSTest
+          testResultsFiles: "**/*.trx"
+          testRunTitle: "Windows Tests ($(FRAMEWORK)) (Attempt $(System.JobAttempt))"
+          platform: Windows
+          configuration: "Debug UT + Release E2E ($(FRAMEWORK))"
+      
+      - task: PublishCodeCoverageResults@1
+        displayName: 'Publish code coverage **/*.coverage'
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: '**/*.coverage'
+
+      - task: ComponentGovernanceComponentDetection@0
+        displayName: Component Governance Detection
+        condition: eq(variables.SHOULD_RUN, 'True')
+        inputs:
+          scanType: 'Register'
+          verbosity: 'Verbose'
+          alertWarningLevel: 'Low' # The task will present a warning, but will not cause the build to fail
