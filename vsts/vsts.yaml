@@ -653,8 +653,8 @@ jobs:
 
 
   ### Windows build ###
-  - job: WINDOWS
-    displayName: Windows
+  - job: WINDOWS_SERIAL
+    displayName: Windows Serial
     timeoutInMinutes: ${{ parameters.jobTimeoutInMinutes }}
     strategy:
       maxParallel: 1
