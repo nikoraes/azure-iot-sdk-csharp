@@ -35,6 +35,7 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
         private readonly AcknowledgementType _defaultAcknowledgementType = AcknowledgementType.Abandon;
 
         [TestMethod]
+        [DoNotParallelize]
         [DataRow(IotHubTransportProtocol.Tcp, 1, false)]
         [DataRow(IotHubTransportProtocol.Tcp, 2, false)]
         [DataRow(IotHubTransportProtocol.Tcp, 1, true)]
