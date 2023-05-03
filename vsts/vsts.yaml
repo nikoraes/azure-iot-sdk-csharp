@@ -808,7 +808,7 @@ jobs:
         displayName: "Publish Artifact: testresults"
         condition: eq(variables.SHOULD_RUN, 'True')
         inputs:
-          ArtifactName: testresults_windows_$(FRAMEWORK)
+          ArtifactName: testresults_serial_windows_$(FRAMEWORK)
 
       - task: PublishTestResults@2
         displayName: "Publish Test Results **/*.trx"
@@ -816,7 +816,7 @@ jobs:
         inputs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
-          testRunTitle: "Windows Tests ($(FRAMEWORK)) (Attempt $(System.JobAttempt))"
+          testRunTitle: "Serial Windows Tests ($(FRAMEWORK)) (Attempt $(System.JobAttempt))"
           platform: Windows
           configuration: "Debug UT + Release E2E ($(FRAMEWORK))"
       
