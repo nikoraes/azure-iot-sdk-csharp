@@ -17,13 +17,14 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
     [TestClass]
     [TestCategory("E2E")]
     [TestCategory("IoTHub-Service")]
-    [TestCategory("Serial")]
     public class MessageFeedbackReceiverE2ETest : E2EMsTestBase
     {
         private readonly string _devicePrefix = $"{nameof(MessageFeedbackReceiverE2ETest)}_";
 
         [TestMethod]
+        // Not only will these data rows run in serial, but this test will run on one framework at a time
         [DoNotParallelize]
+        [TestCategory("SerialFrameworkTest")] 
         [Timeout(LongRunningTestTimeoutMilliseconds)]
         [DataRow(IotHubTransportProtocol.Tcp)]
         [DataRow(IotHubTransportProtocol.WebSocket)]

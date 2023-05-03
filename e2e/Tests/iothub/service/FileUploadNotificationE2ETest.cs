@@ -23,7 +23,6 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
     [TestClass]
     [TestCategory("E2E")]
     [TestCategory("IoTHub-Service")]
-    [TestCategory("Serial")]
     public class FileUploadNotificationE2ETest : E2EMsTestBase
     {
         private readonly string _devicePrefix = $"{nameof(FileUploadNotificationE2ETest)}_";
@@ -35,6 +34,8 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
         private readonly AcknowledgementType _defaultAcknowledgementType = AcknowledgementType.Abandon;
 
         [TestMethod]
+        // Not only will these data rows run in serial, but this test will run on one framework at a time
+        [TestCategory("SerialFrameworkTest")]
         [DoNotParallelize]
         [DataRow(IotHubTransportProtocol.Tcp, 1, false)]
         [DataRow(IotHubTransportProtocol.Tcp, 2, false)]

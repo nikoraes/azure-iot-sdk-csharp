@@ -456,7 +456,7 @@ try
 
         # Tests categories to include
         $testCategory = "("
-        $testCategory += "TestCategory=Serial"
+        $testCategory += "TestCategory=SerialFrameworkTest"
         $testCategory += ")"
 
         # test categories to exclude
@@ -485,7 +485,7 @@ try
     }
 	else
 	{
-        $testCategory += "&TestCategory!=Serial"
+        $testCategory += "&TestCategory!=SerialFrameworkTest"
 	}
 
     if ($package)
