@@ -17,6 +17,7 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
     [TestClass]
     [TestCategory("E2E")]
     [TestCategory("IoTHub-Service")]
+    [TestCategory("Serial")]
     public class MessageFeedbackReceiverE2ETest : E2EMsTestBase
     {
         private readonly string _devicePrefix = $"{nameof(MessageFeedbackReceiverE2ETest)}_";
@@ -25,7 +26,6 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
         [Timeout(LongRunningTestTimeoutMilliseconds)]
         [DataRow(IotHubTransportProtocol.Tcp)]
         [DataRow(IotHubTransportProtocol.WebSocket)]
-        [TestCategory("Serial")]
         public async Task MessageFeedbackReceiver_Operation(IotHubTransportProtocol protocol)
         {
             // Setting up one cancellation token for the complete test flow
