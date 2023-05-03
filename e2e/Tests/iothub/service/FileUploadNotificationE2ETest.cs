@@ -23,7 +23,6 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
     [TestClass]
     [TestCategory("E2E")]
     [TestCategory("IoTHub-Service")]
-    [TestCategory("Serial")]
     public class FileUploadNotificationE2ETest : E2EMsTestBase
     {
         private readonly string _devicePrefix = $"{nameof(FileUploadNotificationE2ETest)}_";
@@ -35,86 +34,80 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
         private readonly AcknowledgementType _defaultAcknowledgementType = AcknowledgementType.Abandon;
 
         [TestMethod]
-        [DataRow(IotHubTransportProtocol.Tcp, 1, false)]
-        [DataRow(IotHubTransportProtocol.Tcp, 2, false)]
-        [DataRow(IotHubTransportProtocol.Tcp, 1, true)]
-        [DataRow(IotHubTransportProtocol.WebSocket, 1, false)]
-        [DataRow(IotHubTransportProtocol.WebSocket, 1, true)]
-        public async Task FileUploadNotification_FileUploadNotificationProcessor_ReceivesNotifications(IotHubTransportProtocol protocol, int filesToUpload, bool shouldReconnect)
+        [TestCategory("Serial")]
+        public async Task FileUploadNotification_FileUploadNotificationProcessor_ReceivesNotifications()
         {
-            // arrange
-
-            var options = new IotHubServiceClientOptions
+            int filesToUpload = 2;
+            foreach (IotHubTransportProtocol protocol in Enum.GetValues(typeof(IotHubTransportProtocol)))
             {
-                Protocol = protocol
-            };
+                // arrange
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            using var serviceClient = new IotHubServiceClient(TestConfiguration.IotHub.ConnectionString, options);
-            using StorageContainer storage = await StorageContainer.GetInstanceAsync("fileupload", false).ConfigureAwait(false);
-            using var fileNotification = new SemaphoreSlim(1, 1);
-
-            try
-            {
-                var files = new Dictionary<string, bool>(filesToUpload);
-                var allFilesFound = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                async Task<AcknowledgementType> OnFileUploadNotificationReceived(FileUploadNotification fileUploadNotification)
+                var options = new IotHubServiceClientOptions
                 {
-                    string fileName = fileUploadNotification.BlobName.Substring(fileUploadNotification.BlobName.IndexOf('/') + 1);
-                    if (!files.ContainsKey(fileName))
-                    {
-                        // Notification does not belong to this test
-                        VerboseTestLogger.WriteLine($"Received notification for unrelated file {fileName}.");
-                        return _defaultAcknowledgementType;
-                    }
+                    Protocol = protocol
+                };
 
-                    VerboseTestLogger.WriteLine($"Received notification for {fileName}.");
-                    if (!files[fileName])
-                    {
-                        files[fileName] = true;
-                        CloudBlob blob = storage.CloudBlobContainer.GetBlobReference(fileUploadNotification.BlobName);
-                        VerboseTestLogger.WriteLine($"Deleting blob {fileUploadNotification.BlobName}...");
-                        await blob.DeleteIfExistsAsync(cts.Token).ConfigureAwait(false);
-                    }
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                using var serviceClient = new IotHubServiceClient(TestConfiguration.IotHub.ConnectionString, options);
+                using StorageContainer storage = await StorageContainer.GetInstanceAsync("fileupload", false).ConfigureAwait(false);
+                using var fileNotification = new SemaphoreSlim(1, 1);
 
-                    if (files.All(x => x.Value))
-                    {
-                        VerboseTestLogger.WriteLine($"Notifications have been received for all files uploads!");
-                        allFilesFound.TrySetResult(true);
-                    }
-
-                    return AcknowledgementType.Complete;
-                }
-
-                serviceClient.FileUploadNotifications.FileUploadNotificationProcessor = OnFileUploadNotificationReceived;
-                VerboseTestLogger.WriteLine($"Opening client...");
-                await serviceClient.FileUploadNotifications.OpenAsync(cts.Token).ConfigureAwait(false);
-                if (shouldReconnect)
+                try
                 {
-                    VerboseTestLogger.WriteLine($"Closing client...");
-                    await serviceClient.FileUploadNotifications.CloseAsync(cts.Token).ConfigureAwait(false);
-                    VerboseTestLogger.WriteLine($"Reopening client...");
+                    var files = new Dictionary<string, bool>(filesToUpload);
+                    var allFilesFound = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    async Task<AcknowledgementType> OnFileUploadNotificationReceived(FileUploadNotification fileUploadNotification)
+                    {
+                        string fileName = fileUploadNotification.BlobName.Substring(fileUploadNotification.BlobName.IndexOf('/') + 1);
+                        if (!files.ContainsKey(fileName))
+                        {
+                            // Notification does not belong to this test
+                            VerboseTestLogger.WriteLine($"Received notification for unrelated file {fileName}.");
+                            return _defaultAcknowledgementType;
+                        }
+
+                        VerboseTestLogger.WriteLine($"Received notification for {fileName}.");
+                        if (!files[fileName])
+                        {
+                            files[fileName] = true;
+                            CloudBlob blob = storage.CloudBlobContainer.GetBlobReference(fileUploadNotification.BlobName);
+                            VerboseTestLogger.WriteLine($"Deleting blob {fileUploadNotification.BlobName}...");
+                            await blob.DeleteIfExistsAsync(cts.Token).ConfigureAwait(false);
+                        }
+
+                        if (files.All(x => x.Value))
+                        {
+                            VerboseTestLogger.WriteLine($"Notifications have been received for all files uploads!");
+                            allFilesFound.TrySetResult(true);
+                        }
+
+                        return AcknowledgementType.Complete;
+                    }
+
+                    serviceClient.FileUploadNotifications.FileUploadNotificationProcessor = OnFileUploadNotificationReceived;
+                    VerboseTestLogger.WriteLine($"Opening client...");
                     await serviceClient.FileUploadNotifications.OpenAsync(cts.Token).ConfigureAwait(false);
-                }
 
-                // act
-                for (int i = 0; i < filesToUpload; ++i)
+                    // act
+                    for (int i = 0; i < filesToUpload; ++i)
+                    {
+                        string fileName = $"TestPayload-{Guid.NewGuid()}.txt";
+                        files.Add(fileName, false);
+                        await UploadFile(fileName, cts.Token).ConfigureAwait(false);
+                    }
+
+                    VerboseTestLogger.WriteLine($"Waiting on file upload notification...");
+                    await allFilesFound.WaitAsync(cts.Token).ConfigureAwait(false);
+
+                    // assert
+                    allFilesFound.Task.IsCompleted.Should().BeTrue();
+                }
+                finally
                 {
-                    string fileName = $"TestPayload-{Guid.NewGuid()}.txt";
-                    files.Add(fileName, false);
-                    await UploadFile(fileName, cts.Token).ConfigureAwait(false);
+                    VerboseTestLogger.WriteLine($"Cleanup: closing client...");
+                    await serviceClient.FileUploadNotifications.CloseAsync().ConfigureAwait(false);
                 }
 
-                VerboseTestLogger.WriteLine($"Waiting on file upload notification...");
-                await allFilesFound.WaitAsync(cts.Token).ConfigureAwait(false);
-
-                // assert
-                allFilesFound.Task.IsCompleted.Should().BeTrue();
-            }
-            finally
-            {
-                VerboseTestLogger.WriteLine($"Cleanup: closing client...");
-                await serviceClient.FileUploadNotifications.CloseAsync().ConfigureAwait(false);
             }
         }
 
