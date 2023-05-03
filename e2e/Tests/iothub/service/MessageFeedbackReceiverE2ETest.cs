@@ -26,7 +26,6 @@ namespace Microsoft.Azure.Devices.E2ETests.IotHub.Service
         [Timeout(LongRunningTestTimeoutMilliseconds)]
         [DataRow(IotHubTransportProtocol.Tcp)]
         [DataRow(IotHubTransportProtocol.WebSocket)]
-        [TestCategory("Flaky")]
         public async Task MessageFeedbackReceiver_Operation(IotHubTransportProtocol protocol)
         {
             // Setting up one cancellation token for the complete test flow
