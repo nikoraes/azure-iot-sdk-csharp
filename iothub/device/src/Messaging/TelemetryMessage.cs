@@ -198,7 +198,7 @@ namespace Microsoft.Azure.Devices.Client
         /// <summary>
         /// Gets the dictionary of user properties which are set when user sends the data.
         /// </summary>
-        public IDictionary<string, string> Properties { get; private set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public IDictionary<string, string> Properties { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Gets the dictionary of system properties which are managed internally.
